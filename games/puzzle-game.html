@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Search Puzzle</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        html,
+        body {
+            font-size: 16px;
+            overscroll-behavior-y: none;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+        }
+
+        /* Fluid typography that scales with viewport width */
+        :root {
+            --main-font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+            --header-font-size: clamp(1rem, 3vw, 1.3rem);
+            --item-font-size: clamp(0.85rem, 2.5vw, 1rem);
+        }
+
+        .game-header {
+            background: #28a745;
+            color: white;
+            padding: 0.75rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            height: 65px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+        }
+
+        .game-header h4 {
+            font-size: var(--header-font-size);
+            font-weight: 600;
+            margin-bottom: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 50vw;
+        }
+
+        .puzzle-container {
+            max-width: 850px;
+            margin: 0.5rem auto;
+            padding: max(10px, 3vw);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Grid cells that scale with screen size */
+        .word-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 1px;
+            margin: 0.75rem 0;
+            justify-content: center;
+        }
+
+        .letter-cell {
+            width: calc(min(35px, 9vw));
+            height: calc(min(35px, 9vw));
+            border: 2px solid #28a745;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+            font-size: calc(min(1rem, 5vw));
+        }
+
+        .letter-cell.selected {
+            background: #28a745;
+            color: white;
+        }
+
+        .letter-cell.dragging {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .letter-cell.found {
+            background-color: #d4edda;
+            color: #28a745;
+        }
+
+        .word-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 0.4rem;
+            margin-top: 0.75rem;
+        }
+
+        .word-item {
+            padding: 0.5rem;
+            text-align: center;
+            border: 2px solid #28a745;
+            border-radius: 6px;
+            font-size: var(--item-font-size);
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .word-item.found {
+            background: #d4edda;
+            text-decoration: line-through;
+        }
+
+        .selection-line {
+            position: absolute;
+            height: 4px;
+            background: #28a745;
+            transform-origin: left center;
+            pointer-events: none;
+            border-radius: 2px;
+            opacity: 0.5;
+        }
+
+        .completion-modal {
+            background-color: rgba(40, 167, 69, 0.1);
+        }
+
+        .modal-content {
+            border-radius: 12px;
+        }
+
+        .modal-header {
+            padding: 0.75rem 1rem;
+        }
+
+        .modal-body {
+            padding: 1rem;
+        }
+
+        .trophy-icon {
+            font-size: 40px;
+            color: #ffc107;
+        }
+
+        .score-detail {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-size: calc(var(--main-font-size) - 0.15rem);
+        }
+
+        /* Improved button sizing for better touch targets */
+        .btn {
+            padding: 0.5rem 1rem;
+            font-size: var(--main-font-size);
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Score Display */
+        .score-display {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: calc(var(--main-font-size) - 0.2rem);
+            white-space: nowrap;
+        }
+
+        /* Progress bar */
+        .progress {
+            height: 4px;
+        }
+
+        /* Container settings */
+        .container {
+            padding-left: max(5px, 2vw) !important;
+            padding-right: max(5px, 2vw) !important;
+            max-width: 100% !important;
+            padding-top: 75px !important;
+        }
+
+        .puzzle-container {
+            padding-left: max(10px, 3vw) !important;
+            padding-right: max(10px, 3vw) !important;
+            margin-left: 3px !important;
+            margin-right: 3px !important;
+        }
+
+        /* More specific breakpoints for better scaling */
+        @media (max-width: 414px) {
+            .game-header .d-flex.align-items-center.gap-3 {
+                gap: 0.3rem !important;
+            }
+
+            .score-display {
+                padding: 3px 6px;
+                font-size: 0.8rem;
+            }
+
+            .word-list {
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            }
+
+            .word-item {
+                font-size: 0.85rem;
+                padding: 0.4rem;
+            }
+
+            .btn-sm {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .game-header h4 {
+                font-size: 0.95rem;
+                max-width: 40vw;
+            }
+
+            .letter-cell {
+                width: calc(min(30px, 8vw));
+                height: calc(min(30px, 8vw));
+                font-size: calc(min(0.9rem, 4.5vw));
+                border-width: 1.5px;
+            }
+
+            .score-display {
+                padding: 2px 5px;
+                font-size: 0.75rem;
+            }
+
+            .word-list {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+                gap: 0.3rem;
+            }
+
+            .word-item {
+                font-size: 0.8rem;
+                padding: 0.35rem;
+                min-height: 32px;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .letter-cell {
+                width: calc(min(25px, 7vw));
+                height: calc(min(25px, 7vw));
+                font-size: calc(min(0.8rem, 4vw));
+                border-width: 1px;
+            }
+
+            .container {
+                padding-left: 3px !important;
+                padding-right: 3px !important;
+            }
+
+            .puzzle-container {
+                padding: 8px !important;
+            }
+
+            .word-list {
+                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            }
+
+            .score-display {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <div class="game-header">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-0">Word Search - Level <span id="level">1</span></h4>
+                <small class="text-light" id="category"></small>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="score-display">
+                    <i class="bi bi-star-fill text-warning"></i>
+                    Score: <span id="current-score">0</span>
+                </span>
+                <span class="score-display">
+                    <i class="bi bi-clock"></i>
+                    <span id="timer">5:00</span>
+                </span>
+                <a href="../play.html" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </div>
+        <div class="progress mt-2">
+            <div id="progress" class="progress-bar bg-warning" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="puzzle-container">
+            <div id="word-grid" class="word-grid"></div>
+            <div id="word-list" class="word-list"></div>
+        </div>
+    </div>
+
+    <div class="modal fade completion-modal" id="completionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Level Complete!</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="trophy-icon mb-3">🏆</div>
+                    <h4>Congratulations!</h4>
+                    <p>You've completed Level <span id="completedLevel"></span></p>
+
+                    <div class="score-detail">
+                        <div class="row">
+                            <div class="col-6 text-start">Final Score:</div>
+                            <div class="col-6 text-end" id="modalScore"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 text-start">Words Found:</div>
+                            <div class="col-6 text-end" id="modalWordsFound"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 text-start">Time Bonus:</div>
+                            <div class="col-6 text-end" id="modalTimeBonus"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="location.reload()">
+                        Try Again
+                    </button>
+                    <button type="button" class="btn btn-success" id="nextLevelBtn">
+                        Next Level
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize modal globally
+        let completionModal;
+        document.addEventListener('DOMContentLoaded', () => {
+            completionModal = new bootstrap.Modal(document.getElementById('completionModal'));
+        });
+
+        class WordSearchPuzzle {
+            constructor(level) {
+                // Convert level to number and ensure it's at least 1
+                this.level = parseInt(level) || 1;
+                // Update level display in header immediately
+                document.getElementById('level').textContent = this.level;
+
+                this.grid = [];
+                this.words = [];
+                this.foundWords = new Set();
+                this.gridSize = 10;
+                this.isSelecting = false;
+                this.selectedCells = [];
+                this.startCell = null;
+                this.startTime = Date.now();
+                this.score = 0;
+                this.basePoints = 100; // Base points per word
+                this.timeLeft = 300; // 5 minutes
+                this.baseScore = 0;
+                this.init();
+            }
+
+            async init() {
+                await this.loadPuzzle();
+                this.renderGrid();
+                this.renderWordList();
+                this.setupEventListeners();
+                this.startTimer();
+                this.updateProgressBar();
+            }
+
+            async loadPuzzle() {
+                try {
+                    const response = await fetch(`../api/get_word_puzzle.php?level=${this.level}`);
+                    const data = await response.json();
+                    this.grid = data.grid;
+                    this.words = data.words;
+                    // Remove the reference to non-existent element
+                    // document.getElementById('total-words').textContent = this.words.length;
+
+                    // Only set category if it exists in the response
+                    if (data.category) {
+                        document.getElementById('category').textContent = data.category;
+                    }
+                } catch (error) {
+                    console.error('Failed to load puzzle:', error);
+                    // Show a user-friendly error message
+                    const gridElement = document.getElementById('word-grid');
+                    gridElement.innerHTML = `
+                        <div class="alert alert-danger w-100 text-center">
+                            <p>Failed to load puzzle for level ${this.level}</p>
+                            <p>Please try again or choose another level</p>
+                        </div>
+                    `;
+                }
+            }
+
+            renderGrid() {
+                const gridElement = document.getElementById('word-grid');
+                gridElement.innerHTML = '';
+
+                this.grid.forEach((row, i) => {
+                    row.forEach((letter, j) => {
+                        const cell = document.createElement('div');
+                        cell.className = 'letter-cell';
+                        cell.textContent = letter;
+                        cell.dataset.row = i;
+                        cell.dataset.col = j;
+                        gridElement.appendChild(cell);
+                    });
+                });
+            }
+
+            renderWordList() {
+                const listElement = document.getElementById('word-list');
+                listElement.innerHTML = this.words.map(word =>
+                    `<div class="word-item ${this.foundWords.has(word) ? 'found' : ''}">${word}</div>`
+                ).join('');
+            }
+
+            setupEventListeners() {
+                const gridElement = document.getElementById('word-grid');
+
+                gridElement.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('letter-cell')) {
+                        this.startSelection(e.target);
+                    }
+                });
+
+                gridElement.addEventListener('mousemove', (e) => {
+                    if (this.isSelecting && e.target.classList.contains('letter-cell')) {
+                        this.updateSelection(e.target);
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    this.endSelection();
+                });
+            }
+
+            startSelection(cell) {
+                this.isSelecting = true;
+                this.startCell = cell;
+                this.selectedCells = [cell];
+                cell.classList.add('selected');
+            }
+
+            updateSelection(cell) {
+                if (!this.isSelecting) return;
+
+                const cells = this.getCellsBetween(this.startCell, cell);
+
+                // Clear previous selection
+                document.querySelectorAll('.letter-cell.dragging').forEach(cell =>
+                    cell.classList.remove('dragging'));
+
+                // Add new selection
+                cells.forEach(cell => cell.classList.add('dragging'));
+                this.selectedCells = cells;
+
+                // Draw selection line
+                this.drawSelectionLine(cells);
+            }
+
+            drawSelectionLine(cells) {
+                // Remove old lines
+                document.querySelectorAll('.selection-line').forEach(line => line.remove());
+
+                if (cells.length < 2) return;
+
+                const first = cells[0].getBoundingClientRect();
+                const last = cells[cells.length - 1].getBoundingClientRect();
+
+                const line = document.createElement('div');
+                line.className = 'selection-line';
+
+                // Calculate line position and rotation
+                const length = Math.hypot(
+                    last.left - first.left,
+                    last.top - first.top
+                );
+                const angle = Math.atan2(
+                    last.top - first.top,
+                    last.left - first.left
+                );
+
+                // Position line
+                line.style.width = `${length}px`;
+                line.style.left = `${first.left + first.width / 2}px`;
+                line.style.top = `${first.top + first.height / 2}px`;
+                line.style.transform = `rotate(${angle}rad)`;
+
+                document.body.appendChild(line);
+            }
+
+            endSelection() {
+                if (!this.isSelecting) return;
+
+                const word = this.getSelectedWord();
+                const reversedWord = word.split('').reverse().join('');
+
+                if (this.words.includes(word) || this.words.includes(reversedWord)) {
+                    const foundWord = this.words.includes(word) ? word : reversedWord;
+                    if (!this.foundWords.has(foundWord)) {  // Check if word wasn't already found
+                        this.foundWords.add(foundWord);
+                        this.selectedCells.forEach(cell => {
+                            cell.classList.remove('dragging');
+                            cell.classList.add('found');
+                        });
+
+                        // Update UI
+                        this.updateScore();
+                        this.updateProgressBar();
+                        this.renderWordList();
+
+                        // Check if all words are found
+                        if (this.foundWords.size === this.words.length) {
+                            setTimeout(() => this.gameWon(), 500); // Small delay for better UX
+                        }
+                    }
+                }
+
+                // Clear selection
+                document.querySelectorAll('.letter-cell.dragging').forEach(cell =>
+                    cell.classList.remove('dragging'));
+                document.querySelectorAll('.selection-line').forEach(line =>
+                    line.remove());
+
+                this.isSelecting = false;
+                this.selectedCells = [];
+                this.startCell = null;
+            }
+
+            getSelectedWord() {
+                return this.selectedCells.map(cell => cell.textContent).join('');
+            }
+
+            getCellsBetween(start, end) {
+                const startRow = parseInt(start.dataset.row);
+                const startCol = parseInt(start.dataset.col);
+                const endRow = parseInt(end.dataset.row);
+                const endCol = parseInt(end.dataset.col);
+
+                // Get direction
+                const rowDiff = endRow - startRow;
+                const colDiff = endCol - startCol;
+
+                // Only allow straight lines (horizontal, vertical, or diagonal)
+                if (Math.abs(rowDiff) !== Math.abs(colDiff) && rowDiff !== 0 && colDiff !== 0) {
+                    return [start];
+                }
+
+                const cells = [];
+                const rowStep = rowDiff === 0 ? 0 : rowDiff / Math.abs(rowDiff);
+                const colStep = colDiff === 0 ? 0 : colDiff / Math.abs(colDiff);
+                const steps = Math.max(Math.abs(rowDiff), Math.abs(colDiff));
+
+                for (let i = 0; i <= steps; i++) {
+                    const row = startRow + (i * rowStep);
+                    const col = startCol + (i * colStep);
+                    const cell = document.querySelector(`.letter-cell[data-row="${row}"][data-col="${col}"]`);
+                    if (cell) cells.push(cell);
+                }
+
+                return cells;
+            }
+
+            startTimer() {
+                const timer = setInterval(() => {
+                    this.timeLeft--;
+                    const minutes = Math.floor(this.timeLeft / 60);
+                    const seconds = this.timeLeft % 60;
+                    document.getElementById('timer').textContent =
+                        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                    if (this.timeLeft <= 0) {
+                        clearInterval(timer);
+                        this.gameOver('Time\'s up!');
+                    }
+                }, 1000);
+            }
+
+            calculateScore() {
+                const timeTaken = (Date.now() - this.startTime) / 1000; // Convert to seconds
+                const maxTime = 300; // 5 minutes in seconds
+                const maxTimeBonus = 500; // Maximum time bonus possible
+
+                // Calculate time bonus - more time remaining = higher bonus
+                const timeBonus = Math.max(0, Math.floor((maxTime - timeTaken) * (maxTimeBonus / maxTime)));
+
+                // Base score calculation
+                const baseScore = this.basePoints * this.foundWords.size * this.level;
+
+                // Total score = base score + time bonus
+                const totalScore = baseScore + timeBonus;
+
+                return {
+                    baseScore,
+                    timeBonus,
+                    totalScore
+                };
+            }
+
+            updateProgressBar() {
+                const progress = (this.foundWords.size / this.words.length) * 100;
+                document.getElementById('progress').style.width = `${progress}%`;
+            }
+
+            updateScore() {
+                this.baseScore += 10 * this.level; // Points per word increases with level
+                document.getElementById('current-score').textContent = this.baseScore;
+            }
+
+            async saveScore(finalScore) {
+                try {
+                    console.log('Saving score:', {
+                        game_type: 'word_puzzle',
+                        level: this.level,
+                        score: finalScore,
+                        time_taken: Math.floor((Date.now() - this.startTime) / 1000)
+                    });
+
+                    const response = await fetch('../api/save_score.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            game_type: 'word_puzzle',
+                            level: this.level,
+                            score: finalScore,
+                            time_taken: Math.floor((Date.now() - this.startTime) / 1000)
+                        }),
+                        credentials: 'include' // Important: include credentials for session
+                    });
+
+                    const data = await response.json();
+                    console.log('Save score response:', data);
+
+                    if (!data.success) {
+                        console.error('Failed to save score:', data.message);
+                    } else {
+                        // Show save status to the user
+                        const scoreStatusMsg = data.message === 'Score updated successfully' ?
+                            'New High Score!' :
+                            data.message === 'Existing score is higher' ?
+                                'Your previous score was higher!' :
+                                'Score saved!';
+
+                        // Add score status to the modal
+                        const scoreDetail = document.querySelector('.score-detail');
+                        const statusRow = document.createElement('div');
+                        statusRow.className = 'row mt-3';
+                        statusRow.innerHTML = `
+                            <div class="col-12 text-center ${data.message === 'Score updated successfully' ? 'text-success fw-bold' : ''}">
+                                ${scoreStatusMsg}
+                            </div>
+                        `;
+                        scoreDetail.appendChild(statusRow);
+                    }
+                } catch (error) {
+                    console.error('Error saving score:', error);
+                }
+            }
+
+            gameWon() {
+                const timeBonus = Math.floor(this.timeLeft * 2);
+                const finalScore = this.baseScore + timeBonus;
+
+                // Update modal content
+                document.getElementById('completedLevel').textContent = this.level;
+                document.getElementById('modalScore').textContent = finalScore;
+                document.getElementById('modalTimeBonus').textContent = `+${timeBonus}`;
+                document.getElementById('modalWordsFound').textContent =
+                    `${this.foundWords.size}/${this.words.length}`;
+
+                // Configure next level button
+                const nextLevelBtn = document.getElementById('nextLevelBtn');
+                nextLevelBtn.onclick = () => {
+                    window.location.href = `puzzle-game.html?level=${parseInt(this.level) + 1}`;
+                };
+
+                // Save score before showing modal
+                this.saveScore(finalScore).then(() => {
+                    // Show completion modal
+                    completionModal.show();
+                });
+            }
+        }
+
+        // Convert level parameter to number when creating game instance
+        const level = parseInt(new URLSearchParams(window.location.search).get('level')) || 1;
+        const game = new WordSearchPuzzle(level);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        html,
+        body {
+            font-size: 16px;
+            overscroll-behavior-y: none;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Fluid typography that scales with viewport width */
+        :root {
+            --main-font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+            --header-font-size: clamp(1rem, 3vw, 1.3rem);
+            --item-font-size: clamp(0.85rem, 2.5vw, 1rem);
+            --btn-font-size: clamp(0.85rem, 2.5vw, 1rem);
+        }
+
+        .game-header {
+            background: #28a745;
+            color: white;
+            padding: 0.75rem 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .game-header h4 {
+            font-size: var(--header-font-size);
+            font-weight: 600;
+            margin-bottom: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70vw;
+        }
+
+        .content-container {
+            padding-top: 85px !important;
+            padding-bottom: 20px;
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: rgba(40, 167, 69, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #28a745;
+            padding: 0.3rem;
+        }
+
+        .avatar i {
+            font-size: var(--item-font-size);
+        }
+
+        .top-avatar {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+            border-width: 3px;
+        }
+
+        .top-avatar i {
+            font-size: calc(var(--item-font-size) * 2);
+        }
+
+        .list-item {
+            padding: 0.8rem 0.6rem;
+            border-bottom: 1px solid rgba(40, 167, 69, 0.1);
+            transition: all 0.3s ease;
+            margin: 0.3rem 0;
+            font-size: var(--main-font-size);
+        }
+
+        .list-item:hover {
+            background-color: rgba(40, 167, 69, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 850px;
+            margin: 0.5rem auto;
+        }
+
+        .player-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Top players podium layout */
+        .top-players .row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+            position: relative;
+            height: auto;
+            min-height: 180px;
+            padding-bottom: 20px;
+        }
+
+        /* First place styling - center and larger */
+        .top-players .player-item:nth-child(2) {
+            order: 2;
+            transform: scale(1.15);
+            z-index: 3;
+            position: relative;
+            top: -20px;
+            max-width: 150px;
+        }
+
+        /* Second place styling - left side */
+        .top-players .player-item:nth-child(1) {
+            order: 1;
+            transform: scale(0.9);
+            z-index: 2;
+            position: relative;
+            top: 10px;
+            margin-right: -5px;
+            max-width: 130px;
+        }
+
+        /* Third place styling - right side */
+        .top-players .player-item:nth-child(3) {
+            order: 3;
+            transform: scale(0.85);
+            z-index: 1;
+            position: relative;
+            top: 15px;
+            margin-left: -5px;
+            max-width: 130px;
+        }
+
+        .player-card h5 {
+            font-size: calc(var(--main-font-size) + 0.1rem);
+            margin: 0.8rem 0 0.4rem;
+            text-align: center;
+            width: 100%;
+        }
+
+        .player-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .badge {
+            font-size: 0.9rem;
+            padding: 0.4rem 0.8rem;
+        }
+
+        /* Improved button sizing for better touch targets */
+        .btn {
+            padding: 0.5rem 1rem;
+            font-size: var(--btn-font-size);
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Progress bar */
+        .progress {
+            height: 4px;
+            width: 100%;
+        }
+
+        /* Container settings */
+        .container {
+            padding-left: max(5px, 2vw) !important;
+            padding-right: max(5px, 2vw) !important;
+            max-width: 100% !important;
+            width: 100%;
+        }
+
+        .game-container {
+            padding-left: max(10px, 3vw) !important;
+            padding-right: max(10px, 3vw) !important;
+            margin-left: 3px !important;
+            margin-right: 3px !important;
+        }
+
+        .points {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .rank {
+            min-width: 25px;
+            text-align: center;
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .player-name {
+            font-size: var(--item-font-size);
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: center;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .list-item .player-name {
+            text-align: left;
+            margin: 0;
+            display: block;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 576px) {
+            .top-players .row {
+                min-height: 160px;
+            }
+
+            .top-players .player-item:nth-child(2) {
+                transform: scale(1.05);
+                top: -15px;
+                max-width: 120px;
+            }
+
+            .top-players .player-item:nth-child(1) {
+                transform: scale(0.85);
+                max-width: 100px;
+            }
+
+            .top-players .player-item:nth-child(3) {
+                transform: scale(0.8);
+                max-width: 100px;
+            }
+
+            .top-avatar {
+                width: 60px;
+                height: 60px;
+            }
+        }
+
+        @media (max-width: 414px) {
+            .game-header .d-flex.align-items-center {
+                flex-wrap: wrap;
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .content-container {
+                padding-top: 80px !important;
+            }
+
+            .top-avatar {
+                width: 65px;
+                height: 65px;
+            }
+
+            .player-name {
+                max-width: 100px;
+                font-size: 0.9rem;
+            }
+
+            .avatar {
+                width: 40px;
+                height: 40px;
+            }
+
+            .list-item {
+                padding: 0.7rem 0.5rem;
+            }
+
+            .btn {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.85rem;
+            }
+
+            /* Adjust top players podium for smaller screens */
+            .top-players .row {
+                min-height: 150px;
+            }
+
+            .top-players .player-item:nth-child(2) {
+                transform: scale(1);
+                top: -10px;
+                max-width: 110px;
+            }
+
+            .top-players .player-item:nth-child(1),
+            .top-players .player-item:nth-child(3) {
+                transform: scale(0.7);
+                max-width: 90px;
+            }
+
+            .player-card .badge {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.5rem;
+            }
+
+            .player-card h5 {
+                margin: 0.5rem 0 0.3rem;
+            }
+
+            .player-card .h6 {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .game-header h4 {
+                font-size: 0.95rem;
+                max-width: 50vw;
+            }
+
+            .top-avatar {
+                width: 60px;
+                height: 60px;
+            }
+
+            .player-name {
+                max-width: 80px;
+                font-size: 0.85rem;
+            }
+
+            .container {
+                padding-left: 5px !important;
+                padding-right: 5px !important;
+            }
+
+            .top-players .player-item:nth-child(2) {
+                transform: scale(0.95);
+                max-width: 100px;
+            }
+
+            .top-players .player-item:nth-child(1),
+            .top-players .player-item:nth-child(3) {
+                transform: scale(0.65);
+                max-width: 80px;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .container {
+                padding-left: 3px !important;
+                padding-right: 3px !important;
+            }
+
+            .game-container {
+                padding: 8px !important;
+            }
+
+            .player-name {
+                max-width: 70px;
+                font-size: 0.8rem;
+            }
+
+            .avatar {
+                width: 35px;
+                height: 35px;
+                min-width: 35px;
+            }
+
+            .top-players .row {
+                min-height: 140px;
+            }
+
+            .top-players .player-item:nth-child(2) {
+                transform: scale(0.9);
+                max-width: 90px;
+            }
+
+            .top-players .player-item:nth-child(1),
+            .top-players .player-item:nth-child(3) {
+                transform: scale(0.6);
+                max-width: 70px;
+            }
+
+            .player-card .badge {
+                font-size: 0.65rem;
+                padding: 0.15rem 0.4rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <!-- Header -->
+    <div class="game-header">
+        <div class="container d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+                <i class="bi bi-trophy"></i> Leaderboard
+            </h4>
+            <a href="home.html" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-house"></i> Home
+            </a>
+        </div>
+        <div class="progress mt-2" style="height: 5px; width: 100%;">
+            <div class="progress-bar bg-warning" style="width: 100%"></div>
+        </div>
+    </div>
+
+    <div class="container content-container">
+        <!-- Game Container -->
+        <div class="game-container">
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="loading-spinner">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+
+            <!-- Top 3 Players -->
+            <div id="topPlayers" class="top-players" style="display: none;">
+                <h4 class="text-center text-success mb-3">
+                    <i class="bi bi-award"></i> Top Players
+                </h4>
+                <div class="row justify-content-center">
+                    <!-- Players will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- Leaderboard List -->
+            <div id="playersList" class="list" style="display: none;">
+                <!-- Players will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Fetch leaderboard data
+            fetch('api/get_leaderboard.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayLeaderboard(data.leaderboard);
+                    } else {
+                        console.error('Error fetching leaderboard:', data.message);
+                        alert('Failed to load leaderboard data');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while loading the leaderboard');
+                })
+                .finally(() => {
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                });
+
+            // Prevent scrolling above the top boundary
+            let lastScrollTop = 0;
+            let lastTouch = 0;
+
+            document.addEventListener('scroll', function () {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+                if (scrollTop < lastScrollTop && scrollTop <= 0) {
+                    window.scrollTo(0, 0);
+                }
+
+                lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+            }, { passive: false });
+
+            document.addEventListener('touchmove', function (e) {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                if (scrollTop <= 0) {
+                    const touch = e.touches[0];
+                    if (touch.clientY > lastTouch) {
+                        e.preventDefault();
+                    }
+                }
+                lastTouch = e.touches[0].clientY;
+            }, { passive: false });
+
+            document.addEventListener('touchstart', function (e) {
+                lastTouch = e.touches[0].clientY;
+            }, { passive: true });
+        });
+
+        // Function to simplify names (extract first word only)
+        function simplifyName(fullName) {
+            if (!fullName) return '';
+            const nameParts = fullName.trim().split(' ');
+            // Return the first part of the name
+            return nameParts[0];
+        }
+
+        function displayLeaderboard(players) {
+            const topPlayersDiv = document.getElementById('topPlayers');
+            const playersListDiv = document.getElementById('playersList');
+
+            // Clear previous data
+            topPlayersDiv.querySelector('.row').innerHTML = '';
+            playersListDiv.innerHTML = '';
+
+            // Display top 3 players
+            if (players.length > 0) {
+                let topPlayersHTML = '';
+
+                // Display positions in this order: 2nd, 1st, 3rd
+                const positions = [1, 0, 2];
+                positions.forEach(index => {
+                    if (players[index]) {
+                        const player = players[index];
+                        const rank = player.rank;
+                        let borderColor = '';
+                        let badgeClass = 'bg-success';
+
+                        if (rank === 1) {
+                            borderColor = 'style="border-color: #ffd700;"';
+                            badgeClass = 'bg-warning';
+                        } else if (rank === 3) {
+                            borderColor = 'style="border-color: #cd7f32;"';
+                        }
+
+                        // Store both full name and simplified name
+                        const simpleName = simplifyName(player.username);
+
+                        topPlayersHTML += `
+                            <div class="col-sm-4 col-10 player-card player-item">
+                                <div class="avatar top-avatar mb-2" ${borderColor}>
+                                    <i class="bi bi-person-fill text-success h1 mb-0"></i>
+                                </div>
+                                <h5 class="mb-1 text-center w-100" title="${player.username}">
+                                    <span class="player-name">${simpleName}</span>
+                                </h5>
+                                <div class="h6 text-success text-center">${player.score} Pts</div>
+                                <div class="badge ${badgeClass}">${rank}${getRankSuffix(rank)} Place</div>
+                            </div>
+                        `;
+                    }
+                });
+
+                topPlayersDiv.querySelector('.row').innerHTML = topPlayersHTML;
+                topPlayersDiv.style.display = 'block';
+
+                // Display remaining players
+                let listHTML = '';
+                for (let i = 3; i < players.length; i++) {
+                    const player = players[i];
+                    // Store both full name and simplified name
+                    const simpleName = simplifyName(player.username);
+
+                    listHTML += `
+                        <div class="list-item d-flex align-items-center player-item">
+                            <span class="rank me-2 me-sm-3 text-success">${player.rank}</span>
+                            <div class="d-flex align-items-center flex-grow-1">
+                                <div class="avatar me-2 me-sm-3">
+                                    <i class="bi bi-person-fill text-success"></i>
+                                </div>
+                                <span class="player-name" title="${player.username}">${simpleName}</span>
+                            </div>
+                            <span class="points text-success ms-auto">${player.score} Pts</span>
+                        </div>
+                    `;
+                }
+
+                playersListDiv.innerHTML = listHTML;
+                playersListDiv.style.display = 'block';
+            } else {
+                playersListDiv.innerHTML = '<div class="text-center p-4">No leaderboard data available</div>';
+                playersListDiv.style.display = 'block';
+            }
+        }
+
+        function getRankSuffix(rank) {
+            if (rank === 1) return 'st';
+            if (rank === 2) return 'nd';
+            if (rank === 3) return 'rd';
+            return 'th';
+        }
+    </script>
+</body>
+
+</html>
